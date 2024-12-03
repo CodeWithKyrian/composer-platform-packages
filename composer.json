@@ -1,0 +1,45 @@
+{
+  "name": "codewithkyrian/composer-platform-packages",
+  "description": "Seamlessly fetch and install platform-dependent packages in your Composer projects with zero configuration overhead",
+  "version": "1.0.0",
+  "type": "composer-plugin",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "Codewithkyrian\\ComposerPlatformPackages\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Codewithkyrian\\ComposerPlatformPackages\\Tests\\": "tests/"
+    }
+  },
+  "authors": [
+    {
+      "name": "Kyrian Obikwelu",
+      "email": "koshnawaza@gmail.com"
+    }
+  ],
+  "require": {
+    "php": "^8.1",
+    "composer-plugin-api": "^1.1 || ^2.0",
+    "composer-runtime-api": "*"
+  },
+  "require-dev": {
+    "composer/composer": "~1.0 || ~2.0",
+    "symfony/var-dumper": "^6.0|^7.0",
+    "pestphp/pest": "^2.36.0|^3.5.0"
+  },
+  "scripts": {
+    "test": "vendor/bin/pest",
+    "test:coverage": "XDEBUG_MODE=coverage ./vendor/bin/pest --coverage"
+  },
+  "extra": {
+    "class": "Codewithkyrian\\ComposerPlatformPackages\\Plugin"
+  },
+  "config": {
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
+  }
+}
