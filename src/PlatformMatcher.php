@@ -25,8 +25,6 @@ class PlatformMatcher
 
     /**
      * Normalize architecture names for consistent matching
-     *
-     * @param string $arch
      */
     public static function normalizeArchitecture(string $arch): string
     {
@@ -61,11 +59,6 @@ class PlatformMatcher
 
     /**
      * Check if a platform definition matches the current platform
-     *
-     * @param string $definedPlatform
-     * @param ?array $currentPlatform
-     *
-     * @return bool
      */
     public static function platformMatches(string $definedPlatform, ?array $currentPlatform = null): bool
     {
@@ -94,11 +87,6 @@ class PlatformMatcher
 
     /**
      * More flexible OS matching
-     *
-     * @param string $definedOs
-     * @param string $currentOs
-     *
-     * @return bool
      */
     private static function matchOperatingSystem(string $definedOs, string $currentOs): bool
     {
@@ -126,39 +114,50 @@ class PlatformMatcher
 
     /**
      * Find the most appropriate URL for the current platform
-     *
-     * @param array $platformUrls
-     * @param array|null $currentPlatform
-     *
-     * @throws \Exception
      */
     public static function findMatchingPlatformUrl(array $platformUrls, array $currentPlatform = null): string
     {
-        // Use current platform if not provided
         $currentPlatform = $currentPlatform ?? self::getCurrentPlatform();
 
-        // First, try exact platform match
-        $exactPlatformStr = "{$currentPlatform['os']}_{$currentPlatform['arch']}";
-        if (isset($platformUrls[$exactPlatformStr])) {
-            return is_array($platformUrls[$exactPlatformStr])
-                ? $platformUrls[$exactPlatformStr][0]
-                : $platformUrls[$exactPlatformStr];
+        $matchingPlatforms = array_filter(
+            array_keys($platformUrls),
+            fn ($platform) => self::platformMatches($platform, $currentPlatform)
+        );
+
+        $prioritizedMatches = self::prioritizePlatformMatches($matchingPlatforms);
+
+        foreach ($prioritizedMatches as $platform) {
+            $urls = (array)$platformUrls[$platform];
+            return $urls[0];
         }
 
-        // Try OS-only match
-        if (isset($platformUrls[$currentPlatform['os']])) {
-            return is_array($platformUrls[$currentPlatform['os']])
-                ? $platformUrls[$currentPlatform['os']][0]
-                : $platformUrls[$currentPlatform['os']];
-        }
+        throw new \Exception('No valid URL could be found for this platform');
+    }
 
-        // Check for 'all' platform
-        if (isset($platformUrls['all'])) {
-            return is_array($platformUrls['all'])
-                ? $platformUrls['all'][0]
-                : $platformUrls['all'];
-        }
+    /**
+     * Prioritize platform matches to prefer more specific matches
+     *
+     * @param array $matches
+     *
+     * @return array
+     */
+    private static function prioritizePlatformMatches(array $matches): array
+    {
+        usort($matches, function ($a, $b) {
+            // 'all' is the least specific
+            if ($a === 'all') return 1;
+            if ($b === 'all') return -1;
 
-        throw new \Exception('No valid url could be found for this platform');
+            // Platforms with architecture are more specific than OS-only
+            $aHasArch = str_contains($a, '-');
+            $bHasArch = str_contains($b, '-');
+
+            if ($aHasArch && !$bHasArch) return -1;
+            if (!$aHasArch && $bHasArch) return 1;
+
+            return 0;
+        });
+
+        return $matches;
     }
 }

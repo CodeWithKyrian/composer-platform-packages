@@ -63,7 +63,7 @@ class PlatformVersions
     public static function getInstallPath(string $parentPackage, string $platformPackage): ?string
     {
         $fullPackageName = self::getFullPackageName($parentPackage, $platformPackage);
-        return Platform::realpath(InstalledVersions::getInstallPath($fullPackageName));
+        return realpath(InstalledVersions::getInstallPath($fullPackageName));
     }
 
     /**
