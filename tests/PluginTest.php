@@ -11,13 +11,17 @@ use Composer\DependencyResolver\Operation\UninstallOperation;
 use Composer\Factory;
 use Composer\Installer\PackageEvent;
 use Composer\IO\NullIO;
+use Composer\Package\Link;
 use Composer\Package\Package;
+use Composer\Util\Filesystem;
 
 beforeEach(function () {
+    $this->filesystem = new Filesystem();
     $this->package = new Package('organization/package', '1.0.0', '1.0.0');
     $this->testZipFile = sprintf("file://%s", realpath(__DIR__.'/fixtures/test-package.zip'));
     $this->testTarFile = sprintf("file://%s", realpath(__DIR__.'/fixtures/test-package.tar.gz'));
 });
+
 
 it('correctly installs and uninstalls a platform package', function () {
     $package = $this->package;
@@ -34,6 +38,9 @@ it('correctly installs and uninstalls a platform package', function () {
 
     $io = new NullIO();
     $composer = (new Factory())->createComposer($io);
+
+    $packagePath = $composer->getInstallationManager()->getInstallPath($package);
+    $this->filesystem->ensureDirectoryExists($packagePath);
 
     $plugin = new Plugin();
     $plugin->activate($composer, $io);

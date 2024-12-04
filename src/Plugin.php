@@ -70,7 +70,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
 
         $localRepository = $this->composer->getRepositoryManager()->getLocalRepository();
         foreach ($localRepository->getCanonicalPackages() as $package) {
-            $this->processPlatformPackages($package);
+            $platformPackages = $this->processPlatformPackages($package);
+
+            $this->updatePackageComposerJson($package, $platformPackages);
         }
     }
 
@@ -80,7 +82,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
     public function onPostPackageInstall(PackageEvent $event): void
     {
         $package = $event->getOperation()->getPackage();
-        $this->processPlatformPackages($package);
+        $platformPackages = $this->processPlatformPackages($package);
+
+        $this->updatePackageComposerJson($package, $platformPackages);
     }
 
     /**
@@ -89,7 +93,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
     public function onPostPackageUpdate(PackageEvent $event): void
     {
         $package = $event->getOperation()->getTargetPackage();
-        $this->processPlatformPackages($package);
+        $platformPackages = $this->processPlatformPackages($package);
+
+        $this->updatePackageComposerJson($package, $platformPackages);
     }
 
     /**
@@ -98,13 +104,17 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
     public function onPostPackageUninstall(PackageEvent $event): void
     {
         $package = $event->getOperation()->getPackage();
-        $this->uninstallPlatformPackages($package);
+        $platformPackages = $this->uninstallPlatformPackages($package);
+
+        $this->updatePackageComposerJson($package, $platformPackages, false);
     }
 
     /**
      * Process platform-specific installers for a package
+     *
+     * @return PlatformPackage[]
      */
-    protected function processPlatformPackages(PackageInterface $package): void
+    protected function processPlatformPackages(PackageInterface $package): array
     {
         $platformPackages = PlatformConfiguration::parse($package);
 
@@ -131,7 +141,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
         }, $platformPackages);
 
         $validOperations = array_filter($operations);
-        if (empty($validOperations)) return;
+        if (empty($validOperations)) return [];
 
         try {
             $installationManager->execute($localRepository, $validOperations);
@@ -140,9 +150,11 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
             $this->io->writeError("Failed to install platform packages: {$e->getMessage()}");
             throw $e;
         }
+
+        return array_map(fn ($operation) => $operation->getPackage(), $validOperations);
     }
 
-    protected function uninstallPlatformPackages(PackageInterface $package): void
+    protected function uninstallPlatformPackages(PackageInterface $package): array
     {
         $platformPackages = PlatformConfiguration::parse($package);
 
@@ -155,7 +167,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
         );
 
         $validOperations = array_filter($operations);
-        if (empty($validOperations)) return;
+        if (empty($validOperations)) return [];
 
         try {
             $installationManager->execute($localRepository, $validOperations);
@@ -164,6 +176,52 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
         } catch (\Throwable $e) {
             $this->io->writeError("Failed to uninstall platform packages: {$e->getMessage()}");
             throw $e;
+        }
+
+        return array_map(fn ($operation) => $operation->getPackage(), $validOperations);
+    }
+
+    protected function updatePackageComposerJson(PackageInterface $package, array $platformPackages, bool $add = true): void
+    {
+        $installationManager = $this->composer->getInstallationManager();
+        $packagePath = $installationManager->getInstallPath($package);
+
+        $composerJsonPath = rtrim($packagePath, '/').'/composer.json';
+
+        if (!file_exists($composerJsonPath)) {
+            file_put_contents($composerJsonPath, '{}');
+        }
+
+        $composerConfig = json_decode(file_get_contents($composerJsonPath), true);
+        if (!isset($composerConfig['require'])) {
+            $composerConfig['require'] = [];
+        }
+
+        $modified = false;
+        foreach ($platformPackages as $platformPackage) {
+            $packageName = $platformPackage->getName();
+            $packageVersion = $platformPackage->getPrettyVersion();
+
+            // add if $add is true and not already in require
+            if ($add && !isset($composerConfig['require'][$packageName])) {
+                $composerConfig['require'][$packageName] = $packageVersion;
+                $modified = true;
+            }
+
+            // remove if $add is false and already in require
+            if (!$add && isset($composerConfig['require'][$packageName])) {
+                unset($composerConfig['require'][$packageName]);
+                $modified = true;
+            }
+        }
+
+        if ($modified) {
+            file_put_contents(
+                $composerJsonPath,
+                json_encode($composerConfig, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+            );
+
+            $this->io->write("Updated composer.json");
         }
     }
 

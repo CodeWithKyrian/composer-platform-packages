@@ -65,7 +65,7 @@ You can specify multiple platform-specific packages in the `platform-packages` c
 
 Platform Identifiers are used to specify the platform-specific package URL. Platform identifiers can be:
 
-- **Base platform names**: This is case-insensitive e.g. `linux`, `darwin`, `win`, `windows`, `macos`.
+- **Base platform names**: The supported base platform names are `linux`, `darwin`, `win` and `raspberrypi`.
 - **Specific architectures**: Formed by joining the platform identifier with the architecture identifier (`-`), e.g.
   `darwin-arm64`, `darwin-x86_64`, `win-32`, `win-64`, `linux-aarch64`.
 - **Universal**: Use `all` to cover every platform
