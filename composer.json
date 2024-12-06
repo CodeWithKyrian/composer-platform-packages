@@ -38,6 +38,7 @@
     "class": "Codewithkyrian\\ComposerPlatformPackages\\Plugin"
   },
   "config": {
+    "plugin-modifies-downloads": true,
     "allow-plugins": {
       "pestphp/pest-plugin": true
     }

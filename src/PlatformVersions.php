@@ -93,6 +93,6 @@ class PlatformVersions
     public static function getFullPackageName(string $parentPackage, string $platformPackage): string
     {
         [$parentOrg, $parentName] = explode('/', $parentPackage);
-        return "$parentOrg/$parentName:$platformPackage";
+        return "$parentOrg/$parentName-$platformPackage";
     }
 }
