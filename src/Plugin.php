@@ -14,11 +14,14 @@ use Composer\InstalledVersions;
 use Composer\Installer\PackageEvent;
 use Composer\Installer\PackageEvents;
 use Composer\IO\IOInterface;
+use Composer\Json\JsonFile;
+use Composer\Package\Loader\ArrayLoader;
 use Composer\Package\PackageInterface;
 use Composer\Plugin\Capability\CommandProvider;
 use Composer\Plugin\Capable;
 use Composer\Plugin\PluginInterface;
 use Composer\Plugin\Capability\CommandProvider as CommandProviderCapability;
+use Composer\Repository\ArrayRepository;
 use Composer\Script\Event;
 use Composer\Script\ScriptEvents;
 use Symfony\Component\Console\Input\InputInterface;
@@ -30,6 +33,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
 
     protected IOInterface $io;
 
+    protected string $cacheFile;
+
     /**
      * Activate the plugin
      */
@@ -37,6 +42,15 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
     {
         $this->composer = $composer;
         $this->io = $io;
+        $this->cacheFile = getcwd().'/composer-platform-packages-cache.json';
+
+        $platformPackages = $this->loadPlatformPackages();
+        if (!empty($platformPackages)) {
+            $repositoryManager = $this->composer->getRepositoryManager();
+            $repositoryManager->prependRepository(
+                new ArrayRepository($platformPackages)
+            );
+        }
     }
 
     /**
@@ -107,6 +121,28 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
         $platformPackages = $this->uninstallPlatformPackages($package);
 
         $this->updatePackageComposerJson($package, $platformPackages, false);
+    }
+
+    private function loadPlatformPackages(): array
+    {
+        if ($this->shouldUseCachedPackages()) {
+            $cacheData = json_decode(file_get_contents($this->cacheFile), true);
+
+            $loader = new ArrayLoader();
+            return array_map(fn ($packageData) => $loader->load($packageData), $cacheData['packages']);
+        }
+
+        $rootPackage = $this->composer->getPackage();
+        $platformPackages = PlatformConfiguration::parse($rootPackage);
+
+        $localRepository = $this->composer->getRepositoryManager()->getLocalRepository();
+        foreach ($localRepository->getCanonicalPackages() as $package) {
+            $platformPackages = array_merge($platformPackages, PlatformConfiguration::parse($package));
+        }
+
+        $this->cachePackages($platformPackages);
+
+        return $platformPackages;
     }
 
     /**
@@ -183,6 +219,10 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
 
     protected function updatePackageComposerJson(PackageInterface $package, array $platformPackages, bool $add = true): void
     {
+        if (empty($platformPackages)) {
+            return;
+        }
+
         $installationManager = $this->composer->getInstallationManager();
         $packagePath = $installationManager->getInstallPath($package);
 
@@ -223,6 +263,64 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
 
             $this->io->write("Updated composer.json");
         }
+    }
+
+    private function shouldUseCachedPackages(): bool
+    {
+        if (!file_exists($this->cacheFile)) {
+            return false;
+        }
+
+        $cacheData = json_decode(file_get_contents($this->cacheFile), true);
+
+        $currentComposerJsonSignature = $this->getSignature(getcwd().'/composer.json');
+        if ($cacheData['composer_json_signature'] !== $currentComposerJsonSignature) {
+            return false;
+        }
+
+        $currentComposerLockSignature = $this->getSignature(getcwd().'/composer.lock');
+        if ($cacheData['composer_lock_signature'] !== $currentComposerLockSignature) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function getSignature(string $filePath): ?string
+    {
+        return file_exists($filePath)
+            ? md5_file($filePath)
+            : null;
+    }
+
+    private function cachePackages($packages): void
+    {
+        $packageData = array_map(function($package) {
+            return [
+                'name' => $package->getName(),
+                'version' => $package->getPrettyVersion(),
+                'version_normalized' => $package->getVersion(),
+                'type' => $package->getType(),
+                'source' => $package->getSourceType() ? [
+                    'type' => $package->getSourceType(),
+                    'url' => $package->getSourceUrl(),
+                    'reference' => $package->getSourceReference()
+                ] : null,
+                'dist' => $package->getDistType() ? [
+                    'type' => $package->getDistType(),
+                    'url' => $package->getDistUrl(),
+                    'reference' => $package->getDistReference()
+                ] : null,
+            ];
+        }, $packages);
+
+        $cacheData = [
+            'composer_json_signature' => $this->getSignature(getcwd().'/composer.json'),
+            'composer_lock_signature' => $this->getSignature(getcwd().'/composer.lock'),
+            'packages' => $packageData
+        ];
+
+        file_put_contents($this->cacheFile, json_encode($cacheData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
     /**
