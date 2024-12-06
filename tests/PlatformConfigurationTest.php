@@ -155,5 +155,5 @@ it('generates unique package name', function () {
 
     $parsedPackages = PlatformConfiguration::parse($package);
 
-    expect($parsedPackages[0]->getName())->toBe('organization/package:test-lib');
+    expect($parsedPackages[0]->getName())->toBe('organization/package--test-lib');
 });
