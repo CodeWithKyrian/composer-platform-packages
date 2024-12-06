@@ -47,7 +47,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
     {
         $this->composer = $composer;
         $this->io = $io;
-        $this->cacheFile = getcwd().'/composer-platform-packages-cache.json';
+        $this->cacheFile = __DIR__.'/../platform-packages-cache.json';
 
         $platformPackages = $this->loadPlatformPackages();
         if (!empty($platformPackages)) {

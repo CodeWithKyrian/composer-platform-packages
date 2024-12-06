@@ -4,6 +4,7 @@
 .php-cs-fixer.php
 
 composer.lock
+platform-packages-cache.json
 /vendor/
 
 .DS_Store
