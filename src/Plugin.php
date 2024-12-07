@@ -4,34 +4,13 @@ declare(strict_types=1);
 
 namespace Codewithkyrian\ComposerPlatformPackages;
 
-use Composer\Command\BaseCommand;
 use Composer\Composer;
-use Composer\DependencyResolver\Operation\InstallOperation;
-use Composer\DependencyResolver\Operation\UninstallOperation;
-use Composer\DependencyResolver\Operation\UpdateOperation;
-use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\Factory;
-use Composer\InstalledVersions;
-use Composer\Installer;
-use Composer\Installer\PackageEvent;
-use Composer\Installer\PackageEvents;
 use Composer\IO\IOInterface;
-use Composer\Json\JsonFile;
-use Composer\Json\JsonManipulator;
 use Composer\Package\Dumper\ArrayDumper;
 use Composer\Package\Loader\ArrayLoader;
-use Composer\Package\PackageInterface;
-use Composer\Plugin\Capability\CommandProvider;
-use Composer\Plugin\Capable;
 use Composer\Plugin\PluginInterface;
-use Composer\Plugin\Capability\CommandProvider as CommandProviderCapability;
 use Composer\Repository\ArrayRepository;
-use Composer\Repository\RepositoryInterface;
-use Composer\Script\Event;
-use Composer\Script\ScriptEvents;
-use Composer\Util\Filesystem;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
 
 class Plugin implements PluginInterface
 {

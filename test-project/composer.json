@@ -1,0 +1,29 @@
+{
+    "name": "test/platform-package-project",
+    "type": "project",
+    "require": {
+        "php": "^8.1",
+        "codewithkyrian/composer-platform-packages": "@dev"
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../"
+        }
+    ],
+    "config": {
+        "allow-plugins": {
+            "codewithkyrian/composer-platform-packages": true
+        }
+    },
+    "extra": {
+        "platform-packages": {
+            "test-vendor/test-package": {
+                "version": "1.0.0",
+                "platforms": {
+                    "Darwin": "file:///Users/Kyrian/Packages/composer-platform-packages/tests/fixtures/test-package.zip"
+                }
+            }
+        }
+    }
+}
