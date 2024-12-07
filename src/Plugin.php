@@ -18,6 +18,7 @@ use Composer\Installer\PackageEvents;
 use Composer\IO\IOInterface;
 use Composer\Json\JsonFile;
 use Composer\Json\JsonManipulator;
+use Composer\Package\Dumper\ArrayDumper;
 use Composer\Package\Loader\ArrayLoader;
 use Composer\Package\PackageInterface;
 use Composer\Plugin\Capability\CommandProvider;
@@ -49,7 +50,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
         $this->io = $io;
         $this->cacheFile = __DIR__.'/../platform-packages-cache.json';
 
-        $platformPackages = $this->loadPlatformPackages();
+        $platformPackages = $this->getAllPlatformPackages();
         if (!empty($platformPackages)) {
             $repositoryManager = $this->composer->getRepositoryManager();
             $repositoryManager->prependRepository(new ArrayRepository($platformPackages));
@@ -119,13 +120,11 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
 
     }
 
-    private function loadPlatformPackages(): array
-    {
-        if ($this->shouldUseCachedPackages()) {
-            $cacheData = json_decode(file_get_contents($this->cacheFile), true);
 
-            $loader = new ArrayLoader();
-            return array_map(fn ($packageData) => $loader->load($packageData), $cacheData['packages']);
+    private function getAllPlatformPackages(): array
+    {
+        if ($platformPackages = $this->getCachedPackages()) {
+            return $platformPackages;
         }
 
         $rootPackage = $this->composer->getPackage();
@@ -242,13 +241,29 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
         }
 
         file_put_contents($jsonPath, $manipulator->getContents());
+        $this->composer->getLocker()->updateHash(new JsonFile($jsonPath));
     }
 
-    private function shouldUseCachedPackages(): bool
+    private function cachePackages($packages): void
     {
-        if (!file_exists($this->cacheFile)) {
-            return false;
-        }
+        $dumper = new ArrayDumper();
+        $packageData = array_map(fn ($package) => $dumper->dump($package), $packages);
+
+        $composerFile = Factory::getComposerFile();
+        $lockFile = Factory::getLockFile($composerFile);
+
+        $cacheData = [
+            'composer_json_signature' => $this->getSignature($composerFile),
+            'composer_lock_signature' => $this->getSignature($lockFile),
+            'packages' => $packageData
+        ];
+
+        file_put_contents($this->cacheFile, json_encode($cacheData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+
+    private function getCachedPackages(): bool|array
+    {
+        if (!file_exists($this->cacheFile)) return false;
 
         $cacheData = json_decode(file_get_contents($this->cacheFile), true);
 
@@ -265,7 +280,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
             return false;
         }
 
-        return true;
+        $loader = new ArrayLoader();
+        return array_map(fn ($packageData) => $loader->load($packageData), $cacheData['packages']);
     }
 
     private function getSignature(string $filePath): ?string
@@ -273,39 +289,6 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
         return file_exists($filePath)
             ? md5_file($filePath)
             : null;
-    }
-
-    private function cachePackages($packages): void
-    {
-        $packageData = array_map(function ($package) {
-            return [
-                'name' => $package->getName(),
-                'version' => $package->getPrettyVersion(),
-                'version_normalized' => $package->getVersion(),
-                'type' => $package->getType(),
-                'source' => $package->getSourceType() ? [
-                    'type' => $package->getSourceType(),
-                    'url' => $package->getSourceUrl(),
-                    'reference' => $package->getSourceReference()
-                ] : null,
-                'dist' => $package->getDistType() ? [
-                    'type' => $package->getDistType(),
-                    'url' => $package->getDistUrl(),
-                    'reference' => $package->getDistReference()
-                ] : null,
-            ];
-        }, $packages);
-
-        $composerFile = Factory::getComposerFile();
-        $lockFile = Factory::getLockFile($composerFile);
-
-        $cacheData = [
-            'composer_json_signature' => $this->getSignature($composerFile),
-            'composer_lock_signature' => $this->getSignature($lockFile),
-            'packages' => $packageData
-        ];
-
-        file_put_contents($this->cacheFile, json_encode($cacheData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
     /**
