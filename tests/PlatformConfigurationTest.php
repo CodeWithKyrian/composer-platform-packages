@@ -14,11 +14,81 @@ beforeEach(function () {
     $this->rootPackage = new RootPackage('organization/root-package', '2.0.0', '2.0.0');
 });
 
+it('validates package name format correctly', function () {
+    $package = $this->package;
+    $package->setExtra([
+        'platform-packages' => [
+            'valid-vendor/valid-package' => [
+                'version' => '1.2.3',
+                'platforms' => [
+                    php_uname('s') => 'https://example.com/package-{version}.zip'
+                ]
+            ]
+        ]
+    ]);
+
+    $parsedPackages = PlatformConfiguration::parse($package);
+
+    expect($parsedPackages)->toHaveCount(1)
+        ->and($parsedPackages[0]->getName())->toBe('valid-vendor/valid-package');
+});
+
+it('throws exception for invalid package name format', function () {
+    $package = $this->package;
+    $package->setExtra([
+        'platform-packages' => [
+            'invalid-package-name' => [
+                'version' => '1.2.3',
+                'platforms' => [
+                    php_uname('s') => 'https://example.com/package-{version}.zip'
+                ]
+            ]
+        ]
+    ]);
+
+    PlatformConfiguration::parse($package);
+})->throws(InvalidArgumentException::class, 'Invalid package name format');
+
+it('throws exception for package name with uppercase characters', function () {
+    $package = $this->package;
+    $package->setExtra([
+        'platform-packages' => [
+            'Vendor/Package-Name' => [
+                'version' => '1.2.3',
+                'platforms' => [
+                    php_uname('s') => 'https://example.com/package-{version}.zip'
+                ]
+            ]
+        ]
+    ]);
+
+    PlatformConfiguration::parse($package);
+})->throws(InvalidArgumentException::class, 'Invalid package name format');
+
+it('validates complex but valid package names', function () {
+    $package = $this->package;
+    $package->setExtra([
+        'platform-packages' => [
+            'vendor-with-numbers-123/package-with-numbers-456' => [
+                'version' => '1.2.3',
+                'platforms' => [
+                    php_uname('s') => 'https://example.com/package-{version}.zip'
+                ]
+            ]
+        ]
+    ]);
+
+    $parsedPackages = PlatformConfiguration::parse($package);
+
+    expect($parsedPackages)->toHaveCount(1)
+        ->and($parsedPackages[0]->getName())->toBe('vendor-with-numbers-123/package-with-numbers-456');
+});
+
 it('uses provided version in package configuration', function () {
     $package = $this->package;
     $package->setExtra([
         'platform-packages' => [
-            'test-lib' => [
+            'organization/test-lib' => [
                 'version' => '1.2.3',
                 'platforms' => [
                     php_uname('s') => 'https://example.com/mac-{version}.zip'
@@ -39,7 +109,7 @@ it('uses root package version when no version is provided', function () {
     $package = $this->rootPackage;
     $package->setExtra([
         'platform-packages' => [
-            'test-lib' => [
+            'organization/test-lib' => [
                 'platforms' => [
                     php_uname('s') => 'https://example.com/mac-{version}.zip'
                 ]
@@ -60,7 +130,7 @@ it('uses package version when no version is provided for non-root package', func
     $package = $this->package;
     $package->setExtra([
         'platform-packages' => [
-            'test-lib' => [
+            'organization/test-lib' => [
                 'platforms' => [
                     php_uname('s') => 'https://example.com/mac-{version}.zip'
                 ]
@@ -80,7 +150,7 @@ it('uses archive type when specified', function () {
     $package = $this->package;
     $package->setExtra([
         'platform-packages' => [
-            'test-tool' => [
+            'organization/test-tool' => [
                 'type' => 'tar',
                 'platforms' => [
                     php_uname('s') => 'https://example.com/mac.tar'
@@ -98,7 +168,7 @@ it('infers archive type when not specified, but is in the url', function () {
     $package = $this->package;
     $package->setExtra([
         'platform-packages' => [
-            'test-tool' => [
+            'organization/test-tool' => [
                 'platforms' => [
                     php_uname('s') => 'https://example.com/mac.zip'
                 ]
@@ -115,7 +185,7 @@ it('throws exception when no platforms are defined', function () {
     $package = $this->package;
     $package->setExtra([
         'platform-packages' => [
-            'test-lib' => []
+            'organization/test-lib' => []
         ]
     ]);
 
@@ -127,7 +197,7 @@ it('supports all platforms configuration', function () {
     $package = $this->package;
     $package->setExtra([
         'platform-packages' => [
-            'test-lib' => [
+            'organization/test-lib' => [
                 'platforms' => [
                     'all' => 'https://example.com/generic.zip'
                 ]
@@ -139,21 +209,4 @@ it('supports all platforms configuration', function () {
 
     expect($parsedPackages)->toHaveCount(1)
         ->and($parsedPackages[0]->getDistUrl())->toBe('https://example.com/generic.zip');
-});
-
-it('generates unique package name', function () {
-    $package = $this->package;
-    $package->setExtra([
-        'platform-packages' => [
-            'test-lib' => [
-                'platforms' => [
-                    php_uname('s') => 'https://example.com/mac-arm.zip'
-                ]
-            ]
-        ]
-    ]);
-
-    $parsedPackages = PlatformConfiguration::parse($package);
-
-    expect($parsedPackages[0]->getName())->toBe('organization/package--test-lib');
 });

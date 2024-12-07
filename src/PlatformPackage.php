@@ -9,11 +9,9 @@ use Composer\Package\PackageInterface;
 
 class PlatformPackage extends Package
 {
-    public function __construct(PackageInterface $parent, string $name, array $config)
+    public function __construct(string $name, array $config)
     {
-        $fullName = PlatformVersions::getFullPackageName($parent->getName(), $name);
-
-        parent::__construct($fullName, $config['version'], $config['prettyVersion']);
+        parent::__construct($name, $config['version'], $config['prettyVersion']);
 
         $matchingUrl = PlatformMatcher::findMatchingPlatformUrl($config['platforms']);
 

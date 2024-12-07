@@ -32,7 +32,7 @@ class PlatformConfiguration
         foreach ($platformPackageConfigs as $name => $config) {
             $config = self::validatePackageConfig($package, $name, $config);
 
-            $platformPackages[] = new PlatformPackage($package, $name, $config);
+            $platformPackages[] = new PlatformPackage($name, $config);
         }
 
         return $platformPackages;
@@ -49,6 +49,13 @@ class PlatformConfiguration
     private static function validatePackageConfig(PackageInterface $parent, string $packageName, array $packageConfig): array
     {
         $versionParser = new VersionParser();
+
+        if (!preg_match('/^[a-z0-9-]+\/[a-z0-9-]+$/', $packageName)) {
+            throw new \InvalidArgumentException(
+                "Invalid package name format. Package name must follow the 'organization/package' format. " .
+                "Got: $packageName. Example of a valid package name: 'vendor/package-name'"
+            );
+        }
 
         if (isset($packageConfig['version'])) {
             $packageConfig['prettyVersion'] = $packageConfig['version'];
