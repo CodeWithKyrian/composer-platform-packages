@@ -39,6 +39,7 @@
   },
   "config": {
     "plugin-modifies-downloads": true,
+    "plugin-modifies-install-path": true,
     "allow-plugins": {
       "pestphp/pest-plugin": true
     }
