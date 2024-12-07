@@ -35,11 +35,11 @@
     "test:coverage": "XDEBUG_MODE=coverage ./vendor/bin/pest --coverage"
   },
   "extra": {
-    "class": "Codewithkyrian\\ComposerPlatformPackages\\Plugin"
+    "class": "Codewithkyrian\\ComposerPlatformPackages\\Plugin",
+    "plugin-modifies-downloads": true,
+    "plugin-modifies-install-path": true
   },
   "config": {
-    "plugin-modifies-downloads": true,
-    "plugin-modifies-install-path": true,
     "allow-plugins": {
       "pestphp/pest-plugin": true
     }
