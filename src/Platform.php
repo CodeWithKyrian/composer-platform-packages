@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Codewithkyrian\ComposerPlatformPackages;
 
-class PlatformMatcher
+class Platform
 {
     /**
      * Get detailed current platform information
      */
-    public static function getCurrentPlatform(): array
+    public static function current(): array
     {
         $osName = strtolower(php_uname('s'));
         $arch = php_uname('m');
@@ -60,9 +60,9 @@ class PlatformMatcher
     /**
      * Check if a platform definition matches the current platform
      */
-    public static function platformMatches(string $definedPlatform, ?array $currentPlatform = null): bool
+    public static function matches(string $definedPlatform, ?array $currentPlatform = null): bool
     {
-        $currentPlatform = $currentPlatform ?? self::getCurrentPlatform();
+        $currentPlatform = $currentPlatform ?? self::current();
         $definedPlatform = strtolower($definedPlatform);
 
         // Exact match for all platforms
@@ -76,7 +76,7 @@ class PlatformMatcher
         $arch = count($parts) > 1 ? $parts[1] : null;
 
         // OS matching with flexible mapping
-        $osMatch = self::matchOperatingSystem($os, $currentPlatform['os']);
+        $osMatch = self::matchesOS($os, $currentPlatform['os']);
 
         // Architecture matching (if specified)
         $archMatch = $arch === null ||
@@ -88,7 +88,7 @@ class PlatformMatcher
     /**
      * More flexible OS matching
      */
-    private static function matchOperatingSystem(string $definedOs, string $currentOs): bool
+    private static function matchesOS(string $definedOs, string $currentOs): bool
     {
         $osAliases = [
             'win' => ['windows', 'win32', 'win64'],
@@ -115,13 +115,13 @@ class PlatformMatcher
     /**
      * Find the most appropriate URL for the current platform
      */
-    public static function findMatchingPlatformUrl(array $platformUrls, array $currentPlatform = null): string
+    public static function findMatchingUrl(array $platformUrls, array $currentPlatform = null): string|false
     {
-        $currentPlatform = $currentPlatform ?? self::getCurrentPlatform();
+        $currentPlatform = $currentPlatform ?? self::current();
 
         $matchingPlatforms = array_filter(
             array_keys($platformUrls),
-            fn ($platform) => self::platformMatches($platform, $currentPlatform)
+            fn ($platform) => self::matches($platform, $currentPlatform)
         );
 
         $prioritizedMatches = self::prioritizePlatformMatches($matchingPlatforms);
@@ -131,7 +131,7 @@ class PlatformMatcher
             return $urls[0];
         }
 
-        throw new \Exception('No valid URL could be found for this platform');
+       return false;
     }
 
     /**
